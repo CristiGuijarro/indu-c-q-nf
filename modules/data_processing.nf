@@ -10,8 +10,7 @@ process filter_bed {
     path sample
     
     output:
-    path "${sample.baseName}.filtered.bed", emit: filtered
-    tuple val("${sample.simpleName}"), env(TOTAL), emit: total_counts
+    tuple val("${sample.simpleName}"), path("${sample.baseName}.filtered.bed"), env(TOTAL), emit: filtered
 
     script:
     """
@@ -30,39 +29,40 @@ process find_asisi_intersections {
     publishDir "${params.outdir}/intersections/", mode: "copy"
 
     input:
-    path "asisi_intersection.py"
-    each path(sample)
-    path asisi_sites
+    tuple val(sample_id), path(sample), val(total_count), path("asisi_intersection.py"), path(asisi_sites)
 
     output:
-    tuple val("${sample.simpleName}"), path("${sample.baseName}.intersection.bed"), env(COUNTS), emit: intersections
+    path("${sample.baseName}.normalised_counts.bed"), emit: intersections
 
     script:
     """
     python3 asisi_intersection.py \
         -s $sample \
         -a $asisi_sites \
-        -o ${sample.baseName}.intersection.bed
-
-    COUNTS=\$(wc -l < $sample)
+        -c $total_count \
+        -o ${sample.baseName}.normalised_counts.bed
     """
 }
 
-process normalised_counts {
+process plot_results {
     label "process_small"
     label "python"
-    publishDir "${params.outdir}/normalised/", mode: "copy"
+    publishDir "${params.outdir}/normalised_results/", mode: "copy"
 
     input:
-    val normalised_counts
+    path normalised_counts
 
     output:
-    path "normalized_results.tsv"
+    path "normalised_results.tsv" 
 
     script:
     """
-    echo "sample\tnormalised_breaks" > normalized_results.tsv
-    echo ${normalised_counts.join','} | sed 's/,/\\n/g' >> normalized_results.tsv
+    echo "sample_id\tchrom\tstart\tend\tcount" > normalised_results.tsv
+    for file in ${normalised_counts.join(' ')}; do
+        sample_id=\$(basename -- "\${file}" .breakends.filtered.normalised_counts.bed)
+        while IFS= read -r line; do
+            echo -e "\${sample_id}\t\${line}" >> normalised_results.tsv
+        done < "\$file"
+    done
     """
-
 }

@@ -45,7 +45,8 @@ def helpMessage() {
 
 }
 
-include { filter_bed; find_asisi_intersections; normalised_counts } from "./modules/data_processing.nf"
+include { filter_bed; find_asisi_intersections; plot_results } from "./modules/data_processing.nf"
+include { results } from "./modules/results_processing.nf"
 
 
 workflow {
@@ -58,6 +59,7 @@ workflow {
     // Scripts as input
     quality_filter_exe = Channel.value("${workflow.projectDir}/bin/quality_filter.py")
     asisi_intersections_exe = Channel.value("${workflow.projectDir}/bin/asisi_intersection.py")
+    results_exe = Channel.value("${workflow.projectDir}/bin/results.py")
 
     // step 1
     filtered_out = filter_bed(
@@ -65,22 +67,19 @@ workflow {
         samples
     )
 
-    // step 2
-    intersections_out = find_asisi_intersections(
-        asisi_intersections_exe,
-        filtered_out.filtered,
-        asisi_sites
-    )
+    // step 2 & 3
+    normalised_out = filtered_out.filtered 
+        | combine(asisi_intersections_exe)
+        | combine(asisi_sites)
+        | find_asisi_intersections
 
-    // step 3
-    intersection_and_counts = filtered_out.total_counts.join(intersections_out.intersections)
-        | map { sampleInfo ->
-            def sample_id = sampleInfo[0]
-            def total_breaks = sampleInfo[1] as Integer
-            def asisi_breaks = sampleInfo[3] as Integer
-            def normalized_asisi_breaks = asisi_breaks / (total_breaks / 1000)
-            return "${sample_id}\t${normalized_asisi_breaks}"
-        }
+    // step 4
+    collected_counts = normalised_out.intersections
         | collect
-        | normalised_counts
+        | plot_results
+
+    results(
+        results_exe,
+        collected_counts
+    )
 }
