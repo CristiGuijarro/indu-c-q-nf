@@ -15,7 +15,7 @@ This Nextflow workflow is designed to process genomic data obtained from INDUCE-
 
 - Nextflow v23.04.3+
 - Docker (optional)
-- Python imports in [requirements.txt]("requirements.txt")
+- Python imports in [requirements.txt](requirements.txt)
 
 To build the Docker image on macOS, run the following command:
 
@@ -53,3 +53,11 @@ To install the Python dependencies locally, use the following command:
 ```bash
 pip install -r requirements.txt
 ```
+
+## Results/Output
+
+Results are output in [results/results.html](results/results.html) - download file and open in browser to view.
+
+## Future development
+
+Add proper CI tests of course.
